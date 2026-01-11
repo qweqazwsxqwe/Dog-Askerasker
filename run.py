@@ -33,6 +33,7 @@ def get_env_config():
         'dns_server': os.getenv('DNS_SERVER', ''),
         'enable_lines': os.getenv('ENABLE_LINES', '1,2,3,5').split(','),
         'screenshot': os.getenv('ENABLE_SCREENSHOT', 'false').lower() == 'true',
+        'random_suffix_length': int(os.getenv('RANDOM_SUFFIX_LENGTH', '6')),
     }
     return config
 
@@ -85,6 +86,20 @@ def generate_random_user_agent():
     
     return template.format(**params)
 
+def append_random_suffix_to_url(url, length=6):
+    """在URL后面添加随机英文字母后缀"""
+    # 生成随机英文字母
+    random_suffix = ''.join(random.choices(string.ascii_letters, k=length))
+    
+    # 处理URL，在查询参数或末尾添加
+    if '?' in url:
+        # URL中已有查询参数
+        return f"{url}&{random_suffix}={random_suffix}"
+    else:
+        # 直接添加到URL末尾
+        url_with_slash = url if url.endswith('/') else url + '/'
+        return f"{url_with_slash}{random_suffix}"
+
 def ensure_result_directory():
     """确保结果目录存在"""
     result_dir = "result"
@@ -136,79 +151,121 @@ def setup_driver(use_random_ua, custom_ua=''):
 def set_form_options(driver, config):
     """设置表单的高级选项"""
     try:
+        # 确保表单元素可见和可交互，先等待一下
+        time.sleep(0.5)
+        
         # 设置指定解析IP
         if config['ipv4']:
-            ipv4_input = driver.find_element(By.ID, "ipv4")
-            ipv4_input.clear()
-            ipv4_input.send_keys(config['ipv4'])
-            print(f"设置指定解析IP: {config['ipv4']}")
+            try:
+                ipv4_input = WebDriverWait(driver, 5).until(
+                    EC.element_to_be_clickable((By.ID, "ipv4"))
+                )
+                ipv4_input.clear()
+                ipv4_input.send_keys(config['ipv4'])
+                print(f"设置指定解析IP: {config['ipv4']}")
+            except Exception as e:
+                print(f"设置IPv4失败: {str(e)}")
         
         # 设置方法 (GET/POST)
         if config['method'] == 'post':
-            post_radio = driver.find_element(By.CSS_SELECTOR, "input[name='method'][value='post']")
-            driver.execute_script("arguments[0].click();", post_radio)
-            print("设置方法: POST")
+            try:
+                post_radio = WebDriverWait(driver, 5).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, "input[name='method'][value='post']"))
+                )
+                driver.execute_script("arguments[0].click();", post_radio)
+                print("设置方法: POST")
+            except Exception as e:
+                print(f"设置METHOD失败: {str(e)}")
         
         # 设置Referer
         if config['referer']:
-            referer_input = driver.find_element(By.ID, "referer")
-            referer_input.clear()
-            referer_input.send_keys(config['referer'])
-            print(f"设置Referer: {config['referer']}")
+            try:
+                referer_input = WebDriverWait(driver, 5).until(
+                    EC.element_to_be_clickable((By.ID, "referer"))
+                )
+                referer_input.clear()
+                referer_input.send_keys(config['referer'])
+                print(f"设置Referer: {config['referer']}")
+            except Exception as e:
+                print(f"设置Referer失败: {str(e)}")
         
         # 设置User-Agent (在表单中)
-        ua_input = driver.find_element(By.ID, "ua")
-        ua_input.clear()
-        
-        if config['use_random_ua']:
-            random_ua = generate_random_user_agent()
-            ua_input.send_keys(random_ua)
-            print(f"表单中设置随机UA: {random_ua[:60]}...")
-        elif config['custom_ua']:
-            ua_input.send_keys(config['custom_ua'])
-            print(f"表单中设置自定义UA")
+        try:
+            ua_input = WebDriverWait(driver, 5).until(
+                EC.element_to_be_clickable((By.ID, "ua"))
+            )
+            ua_input.clear()
+            
+            if config['use_random_ua']:
+                random_ua = generate_random_user_agent()
+                ua_input.send_keys(random_ua)
+                print(f"表单中设置随机UA: {random_ua[:60]}...")
+            elif config['custom_ua']:
+                ua_input.send_keys(config['custom_ua'])
+                print(f"表单中设置自定义UA")
+        except Exception as e:
+            print(f"设置UA失败: {str(e)}")
         
         # 设置Cookie
         if config['cookies']:
-            cookies_input = driver.find_element(By.ID, "cookies")
-            cookies_input.clear()
-            cookies_input.send_keys(config['cookies'])
-            print(f"设置Cookie")
+            try:
+                cookies_input = WebDriverWait(driver, 5).until(
+                    EC.element_to_be_clickable((By.ID, "cookies"))
+                )
+                cookies_input.clear()
+                cookies_input.send_keys(config['cookies'])
+                print(f"设置Cookie")
+            except Exception as e:
+                print(f"设置Cookie失败: {str(e)}")
         
         # 设置重定向次数
-        redirect_input = driver.find_element(By.ID, "redirect_num")
-        redirect_input.clear()
-        redirect_input.send_keys(str(config['redirect_num']))
-        print(f"设置重定向次数: {config['redirect_num']}")
+        try:
+            redirect_input = WebDriverWait(driver, 5).until(
+                EC.element_to_be_clickable((By.ID, "redirect_num"))
+            )
+            redirect_input.clear()
+            redirect_input.send_keys(str(config['redirect_num']))
+            print(f"设置重定向次数: {config['redirect_num']}")
+        except Exception as e:
+            print(f"设置重定向次数失败: {str(e)}")
         
         # 设置运营商线路
-        time.sleep(0.5)
-        checkboxes = driver.find_elements(By.CSS_SELECTOR, "input[name='line']")
-        for checkbox in checkboxes:
-            value = checkbox.get_attribute('value')
-            if value not in config['enable_lines']:
-                if checkbox.is_selected():
+        try:
+            time.sleep(0.5)
+            checkboxes = driver.find_elements(By.CSS_SELECTOR, "input[name='line']")
+            for checkbox in checkboxes:
+                value = checkbox.get_attribute('value')
+                is_checked = checkbox.is_selected()
+                
+                if value not in config['enable_lines'] and is_checked:
                     driver.execute_script("arguments[0].click();", checkbox)
-            else:
-                if not checkbox.is_selected():
+                    time.sleep(0.1)
+                elif value in config['enable_lines'] and not is_checked:
                     driver.execute_script("arguments[0].click();", checkbox)
-        print(f"设置运营商线路: {','.join(config['enable_lines'])}")
+                    time.sleep(0.1)
+            print(f"设置运营商线路: {','.join(config['enable_lines'])}")
+        except Exception as e:
+            print(f"设置运营商线路失败: {str(e)}")
         
         # 设置DNS
         if config['dns_server_type'] == 'custom' and config['dns_server']:
-            custom_dns_radio = driver.find_element(By.CSS_SELECTOR, "input[name='dns_server_type'][value='custom']")
-            driver.execute_script("arguments[0].click();", custom_dns_radio)
-            time.sleep(0.3)
-            dns_input = driver.find_element(By.ID, "dns_server")
-            dns_input.clear()
-            dns_input.send_keys(config['dns_server'])
-            print(f"设置自定义DNS: {config['dns_server']}")
+            try:
+                custom_dns_radio = WebDriverWait(driver, 5).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, "input[name='dns_server_type'][value='custom']"))
+                )
+                driver.execute_script("arguments[0].click();", custom_dns_radio)
+                time.sleep(0.3)
+                dns_input = WebDriverWait(driver, 5).until(
+                    EC.element_to_be_clickable((By.ID, "dns_server"))
+                )
+                dns_input.clear()
+                dns_input.send_keys(config['dns_server'])
+                print(f"设置自定义DNS: {config['dns_server']}")
+            except Exception as e:
+                print(f"设置DNS失败: {str(e)}")
         
         return True
         
-    except NoSuchElementException as e:
-        print(f"设置表单选项时找不到元素: {str(e)}")
-        return False
     except Exception as e:
         print(f"设置表单选项时出错: {str(e)}")
         return False
@@ -232,11 +289,12 @@ def run_speed_test(driver, url, config, test_num):
         # 设置高级选项
         set_form_options(driver, config)
         
-        # 输入URL
-        print(f"输入测试URL: {url}")
+        # 添加随机后缀到URL
+        test_url = append_random_suffix_to_url(url, config['random_suffix_length'])
+        print(f"输入测试URL: {test_url}")
         host_input = driver.find_element(By.ID, "host")
         host_input.clear()
-        host_input.send_keys(url)
+        host_input.send_keys(test_url)
         time.sleep(0.5)
         
         # 点击快速测试按钮
@@ -339,6 +397,7 @@ def validate_config(config):
     print(f"  - 单轮测速持续时间: {config['test_duration_min']}-{config['test_duration_max']}秒")
     print(f"  - 轮次间隔: {config['wait_interval_min']}-{config['wait_interval_max']}秒")
     print(f"  - 使用随机UA: {config['use_random_ua']}")
+    print(f"  - 随机后缀长度: {config['random_suffix_length']} 个字母")
     
     return True
 
