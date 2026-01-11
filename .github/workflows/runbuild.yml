@@ -1,0 +1,172 @@
+name: Auto Test Avemujica
+
+on:
+  schedule:
+    # 每天 UTC 00:00 运行（北京时间 08:00）
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+    inputs:
+      test_rounds:
+        description: '测试轮次'
+        required: false
+        default: '5'
+      test_duration_min:
+        description: '单轮测速最小持续时间（秒）'
+        required: false
+        default: '15'
+      test_duration_max:
+        description: '单轮测速最大持续时间（秒）'
+        required: false
+        default: '25'
+      wait_interval_min:
+        description: '轮次间隔最小等待时间（秒）'
+        required: false
+        default: '15'
+      wait_interval_max:
+        description: '轮次间隔最大等待时间（秒）'
+        required: false
+        default: '30'
+
+jobs:
+  speed-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Python 环境
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install selenium webdriver-manager
+
+      - name: Set up Chrome
+        uses: browser-actions/setup-chrome@v2
+        with:
+          chrome-version: stable
+          install-chromedriver: true
+
+      - name: 验证环境
+        run: |
+          echo "Python 版本:"
+          python --version
+          echo "Chrome 版本:"
+          chromium-browser --version
+          echo "ChromeDriver 版本:"
+          chromedriver --version
+
+      - name: 设置环境变量
+        env:
+          TEST_URLS: ${{ secrets.TEST_URLS }}
+          TEST_ROUNDS: ${{ github.event.inputs.test_rounds || secrets.TEST_ROUNDS || '5' }}
+          TEST_DURATION_MIN: ${{ github.event.inputs.test_duration_min || secrets.TEST_DURATION_MIN || '15' }}
+          TEST_DURATION_MAX: ${{ github.event.inputs.test_duration_max || secrets.TEST_DURATION_MAX || '25' }}
+          WAIT_INTERVAL_MIN: ${{ github.event.inputs.wait_interval_min || secrets.WAIT_INTERVAL_MIN || '15' }}
+          WAIT_INTERVAL_MAX: ${{ github.event.inputs.wait_interval_max || secrets.WAIT_INTERVAL_MAX || '30' }}
+          USE_RANDOM_UA: ${{ secrets.USE_RANDOM_UA || 'true' }}
+          CUSTOM_UA: ${{ secrets.CUSTOM_UA }}
+          IPV4: ${{ secrets.IPV4 }}
+          METHOD: ${{ secrets.METHOD || 'get' }}
+          REFERER: ${{ secrets.REFERER }}
+          COOKIES: ${{ secrets.COOKIES }}
+          REDIRECT_NUM: ${{ secrets.REDIRECT_NUM || '5' }}
+          DNS_SERVER_TYPE: ${{ secrets.DNS_SERVER_TYPE || 'isp' }}
+          DNS_SERVER: ${{ secrets.DNS_SERVER }}
+          ENABLE_LINES: ${{ secrets.ENABLE_LINES || '1,2,3,5' }}
+          ENABLE_SCREENSHOT: ${{ secrets.ENABLE_SCREENSHOT || 'false' }}
+        run: |
+          echo "环境变量配置完成"
+          echo "TEST_URLS: ${TEST_URLS:0:30}..."
+          echo "TEST_ROUNDS: $TEST_ROUNDS"
+          echo "TEST_DURATION_MIN: $TEST_DURATION_MIN"
+          echo "TEST_DURATION_MAX: $TEST_DURATION_MAX"
+          echo "WAIT_INTERVAL_MIN: $WAIT_INTERVAL_MIN"
+          echo "WAIT_INTERVAL_MAX: $WAIT_INTERVAL_MAX"
+          echo "USE_RANDOM_UA: $USE_RANDOM_UA"
+          echo "ENABLE_LINES: $ENABLE_LINES"
+
+      - name: 运行测速脚本
+        env:
+          TEST_URLS: ${{ secrets.TEST_URLS }}
+          TEST_ROUNDS: ${{ github.event.inputs.test_rounds || secrets.TEST_ROUNDS || '5' }}
+          TEST_DURATION_MIN: ${{ github.event.inputs.test_duration_min || secrets.TEST_DURATION_MIN || '15' }}
+          TEST_DURATION_MAX: ${{ github.event.inputs.test_duration_max || secrets.TEST_DURATION_MAX || '25' }}
+          WAIT_INTERVAL_MIN: ${{ github.event.inputs.wait_interval_min || secrets.WAIT_INTERVAL_MIN || '15' }}
+          WAIT_INTERVAL_MAX: ${{ github.event.inputs.wait_interval_max || secrets.WAIT_INTERVAL_MAX || '30' }}
+          USE_RANDOM_UA: ${{ secrets.USE_RANDOM_UA || 'true' }}
+          CUSTOM_UA: ${{ secrets.CUSTOM_UA }}
+          IPV4: ${{ secrets.IPV4 }}
+          METHOD: ${{ secrets.METHOD || 'get' }}
+          REFERER: ${{ secrets.REFERER }}
+          COOKIES: ${{ secrets.COOKIES }}
+          REDIRECT_NUM: ${{ secrets.REDIRECT_NUM || '5' }}
+          DNS_SERVER_TYPE: ${{ secrets.DNS_SERVER_TYPE || 'isp' }}
+          DNS_SERVER: ${{ secrets.DNS_SERVER }}
+          ENABLE_LINES: ${{ secrets.ENABLE_LINES || '1,2,3,5' }}
+          ENABLE_SCREENSHOT: ${{ secrets.ENABLE_SCREENSHOT || 'false' }}
+        run: |
+          python run.py
+
+      - name: 检查结果目录
+        if: always()
+        run: |
+          echo "检查结果目录..."
+          if [ -d "result" ]; then
+            echo "结果目录存在"
+            ls -lh result/
+            echo "结果文件统计:"
+            find result -type f | wc -l
+          else
+            echo "警告: 结果目录不存在"
+          fi
+
+      - name: 生成结果摘要
+        if: always()
+        run: |
+          echo "## 📊 测速结果摘要" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -d "result" ]; then
+            echo "✅ 测试完成" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 结果文件统计" >> $GITHUB_STEP_SUMMARY
+            echo "- 总文件数: $(find result -type f | wc -l)" >> $GITHUB_STEP_SUMMARY
+            echo "- 单次结果: $(find result -name 'test_*.txt' 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
+            echo "- 汇总文件: $(find result -name 'summary_*.json' 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 最新汇总信息" >> $GITHUB_STEP_SUMMARY
+            if [ -f "$(ls -t result/summary_*.json 2>/dev/null | head -1)" ]; then
+              echo '```json' >> $GITHUB_STEP_SUMMARY
+              cat $(ls -t result/summary_*.json | head -1) >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "❌ 测试失败 - 没有生成结果目录" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: 上传结果到 Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: speed-test-results
+          path: result/
+          retention-days: 30
+          compression-level: 6
+
+
+      - name: 清理空间
+        if: always()
+        run: |
+          echo "清理临时文件..."
+          rm -rf ~/.cache/pip
+          du -sh result/ 2>/dev/null || true
+
+      - name: 失败通知
+        if: failure()
+        run: |
+          echo "::error::测速任务失败，请查看日志了解详情"
