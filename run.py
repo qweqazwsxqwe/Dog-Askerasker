@@ -33,7 +33,7 @@ def get_env_config():
         'dns_server': os.getenv('DNS_SERVER', ''),
         'enable_lines': os.getenv('ENABLE_LINES', '1,2,3,5').split(','),
         'screenshot': os.getenv('ENABLE_SCREENSHOT', 'false').lower() == 'true',
-        'random_suffix_length': int(os.getenv('RANDOM_SUFFIX_LENGTH', '6')),
+        'random_suffix_length': int(os.getenv('RANDOM_SUFFIX_LENGTH', '0')),
     }
     return config
 
