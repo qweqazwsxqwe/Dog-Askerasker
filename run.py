@@ -154,6 +154,16 @@ def set_form_options(driver, config):
         # 确保表单元素可见和可交互，先等待一下
         time.sleep(0.5)
         
+        # 尝试点击高级选项按钮以展开表单
+        try:
+            advanced_button = driver.find_element(By.ID, "ad_options")
+            if advanced_button:
+                driver.execute_script("arguments[0].click();", advanced_button)
+                print("✓ 点击高级选项按钮以展开表单")
+                time.sleep(0.5)
+        except:
+            print("⚠ 未找到高级选项按钮或已展开")
+        
         # 设置指定解析IP
         if config['ipv4']:
             try:
@@ -162,9 +172,10 @@ def set_form_options(driver, config):
                 )
                 ipv4_input.clear()
                 ipv4_input.send_keys(config['ipv4'])
-                print(f"设置指定解析IP: {config['ipv4']}")
+                print(f"✓ 设置指定解析IP: {config['ipv4']}")
             except Exception as e:
-                print(f"设置IPv4失败: {str(e)}")
+                print(f"✗ 设置IPv4失败: {str(e)}")
+                try_click_advanced_options(driver)
         
         # 设置方法 (GET/POST)
         if config['method'] == 'post':
@@ -173,9 +184,10 @@ def set_form_options(driver, config):
                     EC.element_to_be_clickable((By.CSS_SELECTOR, "input[name='method'][value='post']"))
                 )
                 driver.execute_script("arguments[0].click();", post_radio)
-                print("设置方法: POST")
+                print("✓ 设置方法: POST")
             except Exception as e:
-                print(f"设置METHOD失败: {str(e)}")
+                print(f"✗ 设置METHOD失败: {str(e)}")
+                try_click_advanced_options(driver)
         
         # 设置Referer
         if config['referer']:
@@ -185,9 +197,10 @@ def set_form_options(driver, config):
                 )
                 referer_input.clear()
                 referer_input.send_keys(config['referer'])
-                print(f"设置Referer: {config['referer']}")
+                print(f"✓ 设置Referer: {config['referer']}")
             except Exception as e:
-                print(f"设置Referer失败: {str(e)}")
+                print(f"✗ 设置Referer失败: {str(e)}")
+                try_click_advanced_options(driver)
         
         # 设置User-Agent (在表单中)
         try:
@@ -199,12 +212,13 @@ def set_form_options(driver, config):
             if config['use_random_ua']:
                 random_ua = generate_random_user_agent()
                 ua_input.send_keys(random_ua)
-                print(f"表单中设置随机UA: {random_ua[:60]}...")
+                print(f"✓ 表单中设置随机UA: {random_ua[:60]}...")
             elif config['custom_ua']:
                 ua_input.send_keys(config['custom_ua'])
-                print(f"表单中设置自定义UA")
+                print(f"✓ 表单中设置自定义UA")
         except Exception as e:
-            print(f"设置UA失败: {str(e)}")
+            print(f"✗ 设置UA失败: {str(e)}")
+            try_click_advanced_options(driver)
         
         # 设置Cookie
         if config['cookies']:
@@ -214,9 +228,10 @@ def set_form_options(driver, config):
                 )
                 cookies_input.clear()
                 cookies_input.send_keys(config['cookies'])
-                print(f"设置Cookie")
+                print(f"✓ 设置Cookie")
             except Exception as e:
-                print(f"设置Cookie失败: {str(e)}")
+                print(f"✗ 设置Cookie失败: {str(e)}")
+                try_click_advanced_options(driver)
         
         # 设置重定向次数
         try:
@@ -225,9 +240,10 @@ def set_form_options(driver, config):
             )
             redirect_input.clear()
             redirect_input.send_keys(str(config['redirect_num']))
-            print(f"设置重定向次数: {config['redirect_num']}")
+            print(f"✓ 设置重定向次数: {config['redirect_num']}")
         except Exception as e:
-            print(f"设置重定向次数失败: {str(e)}")
+            print(f"✗ 设置重定向次数失败: {str(e)}")
+            try_click_advanced_options(driver)
         
         # 设置运营商线路
         try:
@@ -243,9 +259,10 @@ def set_form_options(driver, config):
                 elif value in config['enable_lines'] and not is_checked:
                     driver.execute_script("arguments[0].click();", checkbox)
                     time.sleep(0.1)
-            print(f"设置运营商线路: {','.join(config['enable_lines'])}")
+            print(f"✓ 设置运营商线路: {','.join(config['enable_lines'])}")
         except Exception as e:
-            print(f"设置运营商线路失败: {str(e)}")
+            print(f"✗ 设置运营商线路失败: {str(e)}")
+            try_click_advanced_options(driver)
         
         # 设置DNS
         if config['dns_server_type'] == 'custom' and config['dns_server']:
@@ -260,15 +277,26 @@ def set_form_options(driver, config):
                 )
                 dns_input.clear()
                 dns_input.send_keys(config['dns_server'])
-                print(f"设置自定义DNS: {config['dns_server']}")
+                print(f"✓ 设置自定义DNS: {config['dns_server']}")
             except Exception as e:
-                print(f"设置DNS失败: {str(e)}")
+                print(f"✗ 设置DNS失败: {str(e)}")
+                try_click_advanced_options(driver)
         
         return True
         
     except Exception as e:
-        print(f"设置表单选项时出错: {str(e)}")
+        print(f"✗ 设置表单选项时出错: {str(e)}")
         return False
+
+def try_click_advanced_options(driver):
+    """尝试点击高级选项按钮"""
+    try:
+        advanced_button = driver.find_element(By.ID, "ad_options")
+        driver.execute_script("arguments[0].click();", advanced_button)
+        print("  → 已点击高级选项按钮")
+        time.sleep(0.5)
+    except Exception as e:
+        print(f"  → 无法点击高级选项: {str(e)}")
 
 def run_speed_test(driver, url, config, test_num):
     """运行单次测速测试"""
